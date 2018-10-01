@@ -7,7 +7,23 @@
 #include "support.h"
 #include "cdata.h"
 
+/* Funções auxiliares */
 
+/* Variáveis Globais */
+
+/* Filas */
+FILA2 aptoAltaPrior
+PFILA2 APTO_ALTA = &aptoAltaPrior
+FILA2 aptoMediaPrior
+PFILA2 APTO_MEDIA = &aptoMediaPrior
+FILA2 aptoBaixaPrior
+PFILA2 APTO_BAIXA = &aptoBaixaPrior
+FILA2 filaBloqueado
+PFILA2 BLOQUEADO = &filaBloqueado
+FILA2 filaExecutando
+PFILA2 EXECUTANDO = &filaExecutando
+FILA2 filaJoin
+PFILA2 JOIN = &filaJoin
 
 int ccreate (void *(*start) (void *), void *arg, int prio)
 {	TCB_t* new_thread;
@@ -32,3 +48,19 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 
 return new_thread->tid;
 }
+
+int cyield(void){
+	return 0;
+}
+
+int csetprio(int tid, int prio);
+
+int cjoin(int tid);
+
+int csem_init(csem_t *sem, int count);
+
+int cwait(csem_t *sem);
+
+int csignal(csem_t *sem);
+
+int cidentify (char *name, int size);
