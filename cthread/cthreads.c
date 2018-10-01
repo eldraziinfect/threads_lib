@@ -11,6 +11,7 @@
 TCB_t* searchTID(PFILA2 pFila, int tid);
 
 /* Variáveis Globais */
+int tid = 0;
 
 /* Filas */
 FILA2 aptoAltaPrior
@@ -37,7 +38,11 @@ ucontext_t r_context;
 int ccreate (void *(*start) (void *), void *arg, int prio)
 {
 	TCB_t* new_thread;
-
+	// Fazer tratamento caso o tid seja 0, que é a thread main;
+	/* Nesse caso, criar as filas, alocar um tcb para main, colocá-la no executando
+	"Para a criação desse contexto devem  ser utilizadas as mesmas chamadas
+	getcontext() e makecontext(), usadas na criação de threads com a ccreate."
+	*/
 
 	new_thread = (TCB_t*) malloc(sizeof(TCB_t));
 
@@ -56,7 +61,7 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 		return FALSE;
 
 
-return new_thread->tid;
+	return new_thread->tid;
 }
 
 // Cedência voluntária:
