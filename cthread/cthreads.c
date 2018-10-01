@@ -90,7 +90,9 @@ int csignal(csem_t *sem);
 int cidentify (char *name, int size);
 
 TCB_t* searchTID(PFILA2 pFila, int tid)
-{   /*Retorna um ponteiro do TCB que contém "tid"*/
+ /*Procura numa fila se existe o processo de tid e retorna | um ponteiro para o TCB caso positivo
+  																												 | NULL caso contrário*/
+{
     TCB_t* tcb;
 
     if (FirstFila2(pFila))
