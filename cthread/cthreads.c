@@ -8,6 +8,7 @@
 #include "cdata.h"
 
 /* Funções auxiliares */
+TCB_t* searchTID(PFILA2 pFila, int tid);
 
 /* Variáveis Globais */
 
@@ -21,12 +22,21 @@ PFILA2 APTO_BAIXA = &aptoBaixaPrior
 FILA2 filaBloqueado
 PFILA2 BLOQUEADO = &filaBloqueado
 FILA2 filaExecutando
-PFILA2 EXECUTANDO = &filaExecutando
+PFILA2 F_EXECUTANDO = &filaExecutando
 FILA2 filaJoin
 PFILA2 JOIN = &filaJoin
 
+
+/* Ponteiro para o TCB em execução */
+TCB_t *EXECUTANDO;
+
+/* Variável u_context para facilitar o retorno */
+ucontext_t r_context;
+
+
 int ccreate (void *(*start) (void *), void *arg, int prio)
-{	TCB_t* new_thread;
+{
+	TCB_t* new_thread;
 
 
 	new_thread = (TCB_t*) malloc(sizeof(TCB_t));
@@ -49,11 +59,25 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 return new_thread->tid;
 }
 
+// Cedência voluntária:
 int cyield(void){
 	return 0;
 }
 
-int csetprio(int tid, int prio);
+// Setar prioridade:
+int csetprio(int tid, int prio){
+		//Aparentemente é pra deixar tid em null em 2018/2, então o csetprio funciona apenas na thread corrente.
+		if(prio >= 0 && prio <= 2){
+			if(EXECUTANDO->prio > prio){
+			// Executar caso o processo tenha baixado a prioridade, executar o escalonador
+			}
+			else{
+				EXECUTANDO->prio = prio;
+			}
+		}
+		else //valor de prioridade é inválido, deve estar entre [0,2].
+			return -1;
+}
 
 int cjoin(int tid);
 
@@ -64,3 +88,20 @@ int cwait(csem_t *sem);
 int csignal(csem_t *sem);
 
 int cidentify (char *name, int size);
+
+TCB_t* searchTID(PFILA2 pFila, int tid)
+{   /*Retorna um ponteiro do TCB que contém "tid"*/
+    TCB_t* tcb;
+
+    if (FirstFila2(pFila))
+        return NULL;
+
+    while((tcb=GetAtIteratorFila2(pFila)) != NULL){
+        if(tcb->tid == tid)
+            return tcb;
+        else
+            if (NextFila2(pFila))
+                return NULL;
+    }
+	return NULL;
+}
