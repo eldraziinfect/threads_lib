@@ -11,7 +11,8 @@ TCB_t* pickHighestPriority();
 
 /* Variáveis Globais */
 int tid = 0;
-
+bool init_threads =0;
+int t_count = 0; // quantidade de threads
 
 
 /* Filas */
@@ -38,25 +39,27 @@ ucontext_t r_context;
 
 int ccreate (void *(*start) (void *), void *arg, int prio)
 {
-	if(tid ==0){ bksbakjdba}
-	tid+=1;
-	TCB_t* new_thread2 = (TCB_t*) malloc (sizeof(TCB_t));
+	if(init_threads ==0) init_thread();
 	
-	new_thread2->prio = prio;
-	new_thread2->state = PROCST_APTO;
-	new_thread2->tid = tid;
-	if (getcontext(&new_thread2->context) == -1)
+	TCB_t* thread = (TCB_t*) malloc (sizeof(TCB_t));
+	
+	thread->prio = prio;
+	thread->state = PROCST_CRIACAO;
+	thread->tid = t_count;
+	t_count++;
+	
+	if (getcontext(&thread->context) == -1)
 	    return -1;
 
 	//Inicializa contexto
-	(new_thread2->context).uc_link = &returncontext;
-	(new_thread2->context).uc_stack.ss_sp = malloc (TAM_MEM * sizeof(char));
-	(new_thread2->context).uc_stack.ss_size = TAM_MEM;
-	makecontext(&(new_thread2->context), (void(*)())start,1,arg);
+	(thread->context).uc_link = &returncontext;
+	(thread->context).uc_stack.ss_sp = malloc (TAM_MEM * sizeof(char));
+	(thread->context).uc_stack.ss_size = TAM_MEM;
+	makecontext(&(thread->context), (void(*)())start,1,arg);
 
 	//ao final do processo de criação, a thread deverá ser inserida na fila dos aptos
-	if(EXCUTANDO->prio < new_thread2->prio){
-		despachante(new_thread2);
+	if(EXCUTANDO->prio < thread->prio){
+		despachante(thread);
 	}
 	
 	if (AppendFila2(APTO, novo_tcb))
@@ -95,20 +98,82 @@ int csetprio(int tid, int prio){
 		return -1;
 }
 
-int cjoin(int tid){
+
+//**** ALGUEM TAVA COMEÇANDO
 /*
+int cjoin(int tid){
+	
+	/*
 * Verificar a existência da thread
 * Verificar se a thread já está sendo esperada
-*/
+
+
 if((procurarApto) && (searchTID(BLOQUEADO,tid) == NULL))
 	return -1;
 
-}
+*/
+
+int cjoin(int tid){
+	
+  if(init_threads == 0)  init_cthreads(); // threads inicializadas
+
+  if(tid == 0){
+	printf("ERRO: erro no TID da thread main.\n"); 
+	return -1;
+  }
+
+   if((find_thread(tid, APTO_ALTA) != 0) &&
+       (find_thread(tid, APTO_MEDIA) != 0) &&
+       (find_thread(tid, APTO_BAIXA) != 0)){
+    	if(find_thread(tid, BLOQUEADO) != 0){
+		printf("ERRO: Não encontrou a thread\n");
+    		return -1;
+    }
+	    
+   TCB_t *thread = EXECUTANDO;
+
+  /** não mudei a struct pq não sabía como q vai ser*/
+  JCB_t *jcb = malloc(sizeof(JCB_t));
+  jcb->tid = tid;
+  jcb->thread = thread;
+
+   if(AppendFila2(&filaJCB, (void*) jcb) != 0){
+    printf("ERRO: erro ao inserir na fila jcb\n\n");
+  }
+
+  thread->state = PROCST_BLOQ;
+  if(AppendFila2(&filaBloqueados, (void*) thread) != 0){
+    printf("ERRO: não pode inserir na fila de bloqueados\n\n");
+  }
+
+  EXECUTANDO = 0;
+  swapcontext(&thread->context, &r_context);
+
+  return 0;
+ }
+
 
 // Semáforo
 int csem_init(csem_t *sem, int count);
 // Semáforo
-int cwait(csem_t *sem);
+int cwait(csem_t *sem){
+	sem->count--;
+
+	if(sem->count < 0){
+	    TCB_t *thread;
+	    thread = EXECUTANDO;
+	    thread->state = PROCST_BLOQ;
+
+	    AppendFila2(sem->fila, (void *) thread);
+	    AppendFila2(&filaBloqueados, (void *) thread);
+
+	    EXECUTANDO = 0;
+
+	    swapcontext(BLOQUEADO, &r_context);
+	    return 0;
+	 }
+  return 0;
+}
 // Semáforo
 int csignal(csem_t *sem){
 	//para cada chamadada primitiva a variável count deve ser decrementada 
@@ -120,20 +185,20 @@ int csignal(csem_t *sem){
 }
 
 int cidentify (char *name, int size){;
-		char nomes[] = "Carine Bertagnolli Bathaglini - 00274715\nGabriel Pakulski da Silva - 00274701\nLuiz Miguel Kruger - 00228271\n";
-		int i,flag = 0;
-		for(i = 0; i < size; i++){
-            if(nomes[i] == '\0'){
-                flag = 1;
-                break;
-            }
-		}
-		if(flag == 0) return -1;
-		for(i = 0;i < size && nomes[i] != '\0';i++){
-                name[i] = nomes[i];
-		}
-		name[i] = '\0';
-		return 0;
+	char nomes[] = "Carine Bertagnolli Bathaglini - 00274715\nGabriel Pakulski da Silva - 00274701\nLuiz Miguel Kruger - 00228271\n";
+	int i,flag = 0;
+	for(i = 0; i < size; i++){
+	    if(nomes[i] == '\0'){
+		flag = 1;
+		break;
+	    }
+	}
+	if(flag == 0) return -1;
+	for(i = 0;i < size && nomes[i] != '\0';i++)
+		name[i] = nomes[i];
+	
+	name[i] = '\0';
+	return 0;
 }
 
 
@@ -163,14 +228,15 @@ void init_threads(){
 		return -1;
 	}
 
-	TCB_t* new_thread = (TCB_t*) malloc(sizeof(TCB_t));
+	EXECUTANDO = (TCB_t*) malloc(sizeof(TCB_t));
 
-	new_thread->prio = prio; // prioridade da thread é passada no parâmetro
-	new_thread->tid = tid;
-	new_thread->state = PROCST_APTO; // a thread está apta
+	EXECUTANDO->prio = prio; // prioridade da thread é passada no parâmetro
+	EXECUTANDO->tid = tid;
+	EXECUTANDO->state = PROCST_APTO; // a thread está apta
 
 	EXECUTANDO = new_thread;
-
+	
+/** ??????????????????????????????????????????????????????????????????????????????????????
 	//create a new thread: getcontext to create a valid context 
 	//(leave the current thread running)
 	getcontext(&(new_thread->context));
@@ -185,67 +251,49 @@ void init_threads(){
 	    escalonador();
 	    return 0;
 	}
-	lockReturn = 1;
-}
+	lockReturn = 1; */
 	
+	init_threads = 1;
 }
 
 
-/* A thread sai do modo bloqueado e vai para o estado apto 
-   RETURN: 1 - caso tenha retirado da fila dos bloqueados
-          -1 - caso não tenha retirado alguém da fila dos aptos
-*/
-int freeBlocked(int tidJ){	
-	/*Retorna 0 se retirou alguém da fila de blocked for join, -1 se não.*/
-    wJoin_t* join;
-    TCB_t* free_thread;
+int find_thread(int tid, PFILA2 fila) {
 
-    if (FirstFila2(JOIN))  return -1; 
-
-	/*Procura pelo tidJ (tid do TCB que está sendo esperado)
-	para verificar se tem alguém bloqueado por ele*/
-    while((join =GetAtIteratorFila2(W_JOIN)) != NULL){
-        if(join->tidJoin == tidJ){	//Se tiver na fila, coloca o que estava bloqueado para apto
-            free_thread = searchTID(BLOCK,join->tidBlocked);
-            free_thread->state = PROCST_APTO; // muda o estado dessa thread para apto
-		
-	    free_thread
-	
-            if(AppendFila2(APTO, tcb_aux)) return -1; // falhou ao ser colocada na fila dos aptos
-            if(deleteNode(BLOCK, tcb_aux)) return -1; // falhou ao tentar ser deletada dos bloqueados
-            if(DeleteAtIteratorFila2(W_JOIN)) return -1;
-
-            return 0;
-        }
-        else
-            if (NextFila2(W_JOIN))
-                return -1;
-    }
+  TCB_t *thread = malloc(sizeof(TCB_t));
+  if(FirstFila2(fila) != 0){
+	printf("ERRO: fila vazia\n");
 	return -1;
+  }
+  
+  do {
+    if(fila->it == 0)  break;
+    thread = (TCB_t *)GetAtIteratorFila2(fila);
+    if(thread->tid == tid) return 0;
+  } while(NextFila2(fila) == 0);
+
+  return -1;
 }
+	
 
 TCB_t* searchTID(PFILA2 fila, int tid)
- /*Procura numa fila se existe o processo de tid e retorna | um ponteiro para o TCB caso positivo
-  																												 | NULL caso contrário*/
+ /*Procura numa fila se existe o processo de tid e retorna | um ponteiro para o TCB caso positivo																											 | NULL caso contrário*/
 {
-    TCB_t* tcb;
-    if (FirstFila2(fila)) // fila vazia
-	{	return NULL;
+    TCB_t* tcb; //// cadê o malloc?
+    if (FirstFila2(fila){
+	    print("ERRO: a fila está vazia\n");
+	    return NULL;
     }
-	while(*tcb = GetAtIteratorFila2(fila)))
-	{	if(tcb->tid == tid)
-		{	return tcb;
-        }
-		else
-		{	if (NextFila2(fila))
-			{	return NULL;
-			}
-		}
-    }
+	while(*tcb = GetAtIteratorFila2(fila))){
+	    if(tcb->tid == tid) return tcb;
+            else
+		if (NextFila2(fila)) return NULL;
 	return NULL;
 }
 
-
+/* 
+* 	OBJETIVO: inserção da thread em alguma das filas de apto, a escolha por determinada fila 
+*		  se dá através de sua prioridade. 
+*/
 int inserirApto(TCB_t* thread){
 	switch(thread->prio){
 		case 0: //inserir no APTO_ALTA
@@ -279,7 +327,7 @@ int escalonador(){
 	*/
 	TCB_t *proximo = pickHighestPriority();
 	if(proximo == NULL){
-		printf("A fila de aptos se encontra vazia!\n");
+		printf("ERRO: A fila de aptos se encontra vazia!\n");
 		return -1; // -1 indica que a fila de aptos está vazia
 	}
 	if(proximo->prio > EXECUTANDO->prio){
@@ -315,33 +363,33 @@ void despachante(TCB_t *proximo){
 	int estado = EXECUTANDO->state; //o próximo estado do executando define qual tratamento ele receberá.
 	switch(estado){
 		case PROCST_APTO: //É necessário colocar o processo na fila de aptos.
-								proximo->state = PROCST_EXEC;
-								TCB_t *temp = EXECUTANDO;
-								EXECUTANDO = proximo;
-								if(removerApto(proximo))
-									return -1;
-								swapcontext(&(temp->context),&(EXECUTANDO->context));
-								return 0;
-								break;
+				proximo->state = PROCST_EXEC;
+				TCB_t *temp = EXECUTANDO;
+				EXECUTANDO = proximo;
+				if(removerApto(proximo))
+					return -1;
+				swapcontext(&(temp->context),&(EXECUTANDO->context));
+				return 0;
+				break;
 		case PROCST_BLOQ: //é necessário colocar o processo na fila de bloqueados.
-								if(AppendFila2(BLOQUEADO,EXECUTANDO))
-									return -1;
-								TCB_t *temp = EXECUTANDO;
-								EXECUTANDO = proximo;
-								if(removerApto(proximo))
-									return -1;
-								swapcontext(&(temp->context),&(EXECUTANDO->context));
-								return 0;
-								break;
+				if(AppendFila2(BLOQUEADO,EXECUTANDO))
+					return -1;
+				TCB_t *temp = EXECUTANDO;
+				EXECUTANDO = proximo;
+				if(removerApto(proximo))
+					return -1;
+				swapcontext(&(temp->context),&(EXECUTANDO->context));
+				return 0;
+				break;
 		case PROCST_TERMINO: //o processo foi terminado: desalocar o PCB.
-								free(EXECUTANDO);
-								//EXEC = NULL;
-								proximo->state = PROCST_EXEC;
-								EXECUTANDO = proximo;
-								if(removerApto(EXECUTANDO))
-									return -1;
-								setcontext(&(EXECUTANDO->context));
-								break;
+				free(EXECUTANDO);
+				//EXEC = NULL;
+				proximo->state = PROCST_EXEC;
+				EXECUTANDO = proximo;
+				if(removerApto(EXECUTANDO))
+					return -1;
+				setcontext(&(EXECUTANDO->context));
+				break;
 		default:
 								return -1;
 	}
@@ -353,28 +401,28 @@ int adicionarApto (TCB_t *tcb){
 	*/
 		switch(tcb->prio){
 			case 0:
-					if(AppendFila2(APTO_ALTA,tcb))
-						return -1;
-					else
-						return 0;
-					break;
+				if(AppendFila2(APTO_ALTA,tcb))
+					return -1;
+				else
+					return 0;
+				break;
 
 			case 1:
-					if(AppendFila2(APTO_MEDIA,tcb))
-						return -1;
-					else
-						return 0;
-					break;
+				if(AppendFila2(APTO_MEDIA,tcb))
+					return -1;
+				else
+					return 0;
+				break;
 
 			case 2:
-					if(AppendFila2(APTO_BAIXA,tcb))
-						return -1;
-					else
-						return 0;
-					break;
-			default:
+				if(AppendFila2(APTO_BAIXA,tcb))
 					return -1;
-					break;
+				else
+					return 0;
+				break;
+			default:
+				return -1;
+				break;
 		}
 }
 //*******PEDIU UM RETORNO: COLOQUEI VOID
@@ -406,17 +454,46 @@ int removeDaFila(PFILA2 fila, TCB_t *tcb)
 	TCB_t* iterador;
 	if(FirstFila2(fila)) //caso falhe a fila ou é vazia ou tem erro.
 		return -1;
-	while((iterador=GetAtIteratorFila2(fila)) && (NextFila2(fila) == 0)) //itera sobre toda fila
-	{
+	while((iterador=GetAtIteratorFila2(fila)) && (NextFila2(fila) == 0)){ //itera sobre toda fila
 		if(iterador->tid == tcb->tid){
 			if(DeleteAtIteratorFila2(fila)) //deleta o elemento, retorna != 0 caso falhe.
-          return -1;
+         			 return -1;
 			else
-          return 0;
+          			return 0;
 		}
 	}
 	return -1;
 }
+
+int remove_thread(int tid, PFILA2 fila)
+{
+  TCB_t *thread;
+  FirstFila2(fila);
+
+  do
+  {
+    if(fila->it == 0)
+    {
+      break;
+    }
+
+    thread = (TCB_t *)GetAtIteratorFila2(fila);
+
+    if(thread->tid == tid)
+    {
+      DeleteAtIteratorFila2(fila);
+      return 0;
+    }
+  } while(NextFila2(fila) == 0);
+  return -1;
+}
+	
+	
+	
+	
+	
+	
+	
 
 int procurarApto(TCB_t *tcb){
 	switch(tcb->prio){
