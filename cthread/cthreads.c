@@ -14,18 +14,18 @@ TCB_t* searchTID(PFILA2 pFila, int tid);
 int tid = 0;
 
 /* Filas */
-FILA2 aptoAltaPrior
-PFILA2 APTO_ALTA = &aptoAltaPrior
-FILA2 aptoMediaPrior
-PFILA2 APTO_MEDIA = &aptoMediaPrior
-FILA2 aptoBaixaPrior
-PFILA2 APTO_BAIXA = &aptoBaixaPrior
-FILA2 filaBloqueado
-PFILA2 BLOQUEADO = &filaBloqueado
-FILA2 filaExecutando
-PFILA2 F_EXECUTANDO = &filaExecutando
-FILA2 filaJoin
-PFILA2 JOIN = &filaJoin
+FILA2 aptoAltaPrior;
+PFILA2 APTO_ALTA = &aptoAltaPrior;
+FILA2 aptoMediaPrior;
+PFILA2 APTO_MEDIA = &aptoMediaPrior;
+FILA2 aptoBaixaPrior;
+PFILA2 APTO_BAIXA = &aptoBaixaPrior;
+FILA2 filaBloqueado;
+PFILA2 BLOQUEADO = &filaBloqueado;
+FILA2 filaExecutando;
+PFILA2 F_EXECUTANDO = &filaExecutando;
+FILA2 filaJoin;
+PFILA2 JOIN = &filaJoin;
 
 
 /* Ponteiro para o TCB em execução */
@@ -66,7 +66,13 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 
 // Cedência voluntária:
 int cyield(void){
-	return 0;
+	EXECUTANDO->state = PROCST_APTO; //Passa de executando pra apto.
+	if(inserirApto(EXEC)) // retorna 0 caso tenha obtido sucesso, igual ao AppendFila2
+		return -1;
+	else{
+		// ESCALONADOR
+		return 0;
+	}
 }
 
 // Setar prioridade:
@@ -75,9 +81,11 @@ int csetprio(int tid, int prio){
 		if(prio >= 0 && prio <= 2){
 			if(EXECUTANDO->prio > prio){
 			// Executar caso o processo tenha baixado a prioridade, executar o escalonador
+			return 0;
 			}
 			else{
 				EXECUTANDO->prio = prio;
+				return 0;
 			}
 		}
 		else //valor de prioridade é inválido, deve estar entre [0,2].
@@ -86,29 +94,55 @@ int csetprio(int tid, int prio){
 
 int cjoin(int tid);
 
+// Semáforo
 int csem_init(csem_t *sem, int count);
-
+// Semáforo
 int cwait(csem_t *sem);
-
+// Semáforo
 int csignal(csem_t *sem);
 
 int cidentify (char *name, int size);
 
-TCB_t* searchTID(PFILA2 pFila, int tid)
+TCB_t* searchTID(PFILA2 fila, int tid)
  /*Procura numa fila se existe o processo de tid e retorna | um ponteiro para o TCB caso positivo
   																												 | NULL caso contrário*/
 {
     TCB_t* tcb;
-
-    if (FirstFila2(pFila))
+    if (FirstFila2(fila))
         return NULL;
-
-    while((tcb=GetAtIteratorFila2(pFila)) != NULL){
+    while((tcb=GetAtIteratorFila2(fila)) != NULL){
         if(tcb->tid == tid)
             return tcb;
         else
-            if (NextFila2(pFila))
+            if (NextFila2(fila))
                 return NULL;
     }
 	return NULL;
+}
+
+int inserirApto(TCB_t* thread){
+		switch(thread->prio){
+			case 0: //inserir no APTO_ALTA
+						if(AppendFila2(APTO_ALTA,thread)) // RETORNA 0 CASO DEU SUCESSO
+							return -1;
+						else
+							return 0;
+						break;
+			case 1: //inserir no APTO_MEDIA
+						if(AppendFila2(APTO_MEDIA,thread))
+							return -1;
+						else
+							return 0;
+						break;
+			case 2: //inserir no APTO_BAIXA
+						if(AppendFila2(APTO_BAIXA,thread))
+							return -1;
+						else
+							return 0;
+						break;
+			default:
+						printf("A PRIORIDADE DO PROCESSO TA ZUADA!\n");
+						return -1;
+						break;
+		}
 }
