@@ -109,7 +109,16 @@ int csetprio(int tid, int prio){
 			return -1;
 }
 
-int cjoin(int tid){
+
+int cjoin(int tid)
+{	if((searchTID(APTO, tid) == NULL) && (searchTID(BLOCK, tid) == NULL)) //A thread não existe em lugar nenhum
+	{	return -1;
+	}
+	if (searchJoin(tid) != 0) // a thread jah estah sendo esperada
+	{	return -1;
+	}
+	
+	// codigo do Tiburski
 /*
 * Verificar a existência da thread
 * Verificar se a thread já está sendo esperada
@@ -117,6 +126,11 @@ int cjoin(int tid){
 if((procurarApto) && (searchTID(BLOQUEADO,tid) == NULL))
 	return -1;
 
+	/// #DUVIDA
+	/// e agora? Tem ums lista de bloqueados em cada thread?
+	// podemos criar uma fila nova que é quase igual só que com menos atributos, que ocupariam espaço inutil
+	
+	
 }
 
 // Semáforo
@@ -357,4 +371,27 @@ int procurarApto(TCB_t *tcb){
 	  default:
 			return -1;
 	}
+}
+
+
+
+
+/// auxiliar cjoin function: 
+int searchJoin(int tid)
+{   /*	Retorna 0 se o processo tid estah bloqueando alguem*/
+    wJoin_t* join;
+
+    if (FirstFila2(W_JOIN)) // erro caso fila vazia
+    {    return -1;
+	}
+    while((join=GetAtIteratorFila2(W_JOIN)) != NULL) // procura na fila
+	{	if(join->tidJoin == tid)
+		{	return 0;
+		}
+        else
+		{	if (NextFila2(W_JOIN)) // erro caso não encontre
+            {	return -1;
+			}
+		}
+    }
 }
