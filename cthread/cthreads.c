@@ -244,7 +244,7 @@ void despachante(TCB_t *proximo){
 }
 
 //*******PEDIU UM RETORNO: COLOQUEI VOID
-void adicionarApto (TCB_t *tcb){
+int adicionarApto (TCB_t *tcb){
 	/* Retorna 0 caso tenha funcionado e -1 cc.
 	*/
 		switch(tcb->prio){
@@ -274,7 +274,7 @@ void adicionarApto (TCB_t *tcb){
 		}
 }
 //*******PEDIU UM RETORNO: COLOQUEI VOID
-void removerApto(TCB_t *tcb){
+int removerApto(TCB_t *tcb){
 	TCB_t *temp;
  	if(searchTID(APTO_ALTA,tcb->id)){
 		if(removeDaFila(APTO_ALTA,temp)){
