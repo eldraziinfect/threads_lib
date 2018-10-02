@@ -46,7 +46,7 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 		if(CreateFila2(APTO_F_EXECUTANDO)) return -1;
 
 		TCB_t* new_thread = (TCB_t*) malloc(sizeof(TCB_t));
-		
+
 		// Fazer tratamento caso o tid seja 0, que é a thread main;
 		/* Nesse caso, criar as filas, alocar um tcb para main, colocá-la no executando
 		"Para a criação desse contexto devem  ser utilizadas as mesmas chamadas
@@ -59,7 +59,7 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 		getcontext(&(new_thread->context));
 
 		EXECUTANDO = new_thread;
-		
+
 
 		/* Making thread context */
 		getcontext(&new_thread->context);
@@ -75,7 +75,7 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 		if (!rb_able_insert(new_thread->tid))
 			return FALSE;
 	}
-	
+
 
 	return new_thread->tid;
 }
@@ -207,21 +207,38 @@ TCB_t* pickHighestPriority(){
 }
 
 despachante(TCB_t *proximo){
-	int estado = EXEC->state; //o próximo estado do executando define qual tratamento ele receberá.
+	int estado = EXECUTANDO->state; //o próximo estado do executando define qual tratamento ele receberá.
 	switch(estado){
 		case PROCST_APTO: //É necessário colocar o processo na fila de aptos.
+								proximo->state = PROCST_EXEC;
+								TCB_t *temp = EXECUTANDO;
+								EXECUTANDO = proximo;
+								if(removerApto(proximo))
+									return -1;
+								swapcontext(&(temp->context),&(EXECUTANDO->context));
+								return 0;
 								break;
 		case PROCST_BLOQ: //é necessário colocar o processo na fila de bloqueados.
+								if(AppendFila2(BLOQUEADO,EXECUTANDO))
+									return -1;
+								TCB_t *temp = EXECUTANDO;
+								EXECUTANDO = proximo;
+								if(removerApto(proximo))
+									return -1;
+								swapcontext(&(temp->context),&(EXECUTANDO->context));
+								return 0;
 								break;
 		case PROCST_TERMINO: //o processo foi terminado: desalocar o PCB.
-								free(EXEC);
+								free(EXECUTANDO);
 								//EXEC = NULL;
 								proximo->state = PROCST_EXEC;
-								EXEC = proximo;
-
+								EXECUTANDO = proximo;
+								if(removerApto(EXECUTANDO))
+									return -1;
+								setcontext(&(EXECUTANDO->context));
 								break;
-		//case PROCST_APTO_SUS
-		//case PROCST_BLOQ_SUS
+		default:
+								return -1;
 	}
 }
 
@@ -254,7 +271,42 @@ adicionarApto (TCB_t *tcb){
 					break;
 		}
 }
-/*deletarApto(TCB_t *tcb){
-
+removerApto(TCB_t *tcb){
+	TCB_t *temp;
+ 	if(searchTID(APTO_ALTA,tcb->id)){
+		if(removeDaFila(APTO_ALTA,temp)){
+			return -1;
+		}
+		else return 0;
+	}
+	if(searchTID(APTO_MEDIA,tcb->id)){
+		if(removeDaFila(APTO_MEDIA,temp)){
+			return -1;
+		}
+		else return 0;
+	}
+	if(searchTID(APTO_BAIXA,tcb->id)){
+		if(removeDaFila(APTO_BAIXA,temp)){
+			return -1;
+		}
+		else return 0;
+	}
+	return -1;
 }
-*/
+
+int removeDaFila(PFILA2 fila, TCB_t *tcb)
+{	/*Retorna 0 se deleta corretamente o TCB de fila, -1 se houve erro*/
+	TCB_t* iterador;
+	if(FirstFila2(fila)) //caso falhe a fila ou é vazia ou tem erro.
+		return -1;
+	while((iterador=GetAtIteratorFila2(fila)) && (NextFila2(fila) == 0)) //itera sobre toda fila
+	{
+		if(iterador->tid == tcb->tid){
+			if(DeleteAtIteratorFila2(fila)) //deleta o elemento, retorna != 0 caso falhe.
+          return -1;
+			else
+          return 0;
+		}
+	}
+	return -1;
+}
