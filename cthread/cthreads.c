@@ -124,17 +124,22 @@ TCB_t* searchTID(PFILA2 fila, int tid)
   																												 | NULL caso contrário*/
 {
     TCB_t* tcb;
-    if (FirstFila2(fila))
-        return NULL;
-    while((tcb=GetAtIteratorFila2(fila)) != NULL){
-        if(tcb->tid == tid)
-            return tcb;
-        else
-            if (NextFila2(fila))
-                return NULL;
+    if (FirstFila2(fila)) // fila vazia
+	{	return NULL;
+    }
+	while(*tcb = GetAtIteratorFila2(fila)))
+	{	if(tcb->tid == tid)
+		{	return tcb;
+        }
+		else
+		{	if (NextFila2(fila))
+			{	return NULL;
+			}
+		}
     }
 	return NULL;
 }
+
 
 int inserirApto(TCB_t* thread){
 		switch(thread->prio){
