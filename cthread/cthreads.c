@@ -146,3 +146,94 @@ int inserirApto(TCB_t* thread){
 						break;
 		}
 }
+
+int escalonador(){
+	/*
+	* Implementação de um escalonador preemptivo por prioridade
+	*/
+	TCB_t *proximo = pickHighestPriority();
+	if(proximo == NULL){
+		printf("A fila de aptos se encontra vazia!\n");
+		return -1; // -1 indica que a fila de aptos está vazia
+	}
+	if(proximo->prio > EXEC->prio){
+		despachante(proximo);
+		return 0; //retorna 0 caso a troca de contexto tenha ocorrido.
+	}
+	return 1; //retorna 1 caso não tenha ocorrido troca de contexto.
+
+}
+
+TCB_t* pickHighestPriority(){
+	TCB_t *escolhido;
+	if(FirstFila2(APTO_ALTA)){ // Verdadeiro se não tem nenhum elemento de prioridade alta
+		if(FirstFila2(APTO_MEDIA)){ // Verdadeiro se não tem nenhum elemento de prioridade alta ou média:
+			if(FirstFila2(APTO_BAIXA)){ //Verdadeiro se não tem nenhum elemento em nenhuma fila (alta, media e baixa)
+				return -1;
+			}
+			else{ //Existe pelo menos um TCB de prioridade baixa.
+				escolhido = GetAtIteratorFila2(APTO_BAIXA);
+			}
+		}
+		else{//Existe pelo menos um TCB de prioridade media.
+			escolhido = GetAtIteratorFila2(APTO_MEDIA);
+		}
+	}
+	else{//Existe pelo menos um TCB de prioridade alta.
+		escolhido = GetAtIteratorFila2(APTO_ALTA);
+	}
+	return escolhido;
+}
+
+despachante(TCB_t *proximo){
+	int estado = EXEC->state; //o próximo estado do executando define qual tratamento ele receberá.
+	switch(estado){
+		case PROCST_APTO: //É necessário colocar o processo na fila de aptos.
+								break;
+		case PROCST_BLOQ: //é necessário colocar o processo na fila de bloqueados.
+								break;
+		case PROCST_TERMINO: //o processo foi terminado: desalocar o PCB.
+								free(EXEC);
+								//EXEC = NULL;
+								proximo->state = PROCST_EXEC;
+								EXEC = proximo;
+
+								break;
+		//case PROCST_APTO_SUS
+		//case PROCST_BLOQ_SUS
+	}
+}
+
+adicionarApto (TCB_t *tcb){
+	/* Retorna 0 caso tenha funcionado e -1 cc.
+	*/
+		switch(tcb->prio){
+			case 0:
+					if(AppendFila2(APTO_ALTA,tcb))
+						return -1;
+					else
+						return 0;
+					break;
+
+			case 1:
+					if(AppendFila2(APTO_MEDIA,tcb))
+						return -1;
+					else
+						return 0;
+					break;
+
+			case 2:
+					if(AppendFila2(APTO_BAIXA,tcb))
+						return -1;
+					else
+						return 0;
+					break;
+			default:
+					return -1;
+					break;
+		}
+}
+/*deletarApto(TCB_t *tcb){
+
+}
+*/
