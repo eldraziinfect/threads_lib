@@ -114,8 +114,9 @@ int cjoin(int tid){
 * Verificar a existência da thread
 * Verificar se a thread já está sendo esperada
 */
-if((procurarApto))
-	return 0;
+if((procurarApto) && (searchTID(BLOQUEADO,tid) == NULL))
+	return -1;
+
 }
 
 // Semáforo
@@ -336,7 +337,7 @@ int removeDaFila(PFILA2 fila, TCB_t *tcb)
 	return -1;
 }
 
-int procuraApto(TCB_t *tcb){
+int procurarApto(TCB_t *tcb){
 	switch(tcb->prio){
 		case:0
 			if(searchTID(APTO_ALTA,tcb->id))
@@ -356,5 +357,4 @@ int procuraApto(TCB_t *tcb){
 	  default:
 			return -1;
 	}
-
 }
