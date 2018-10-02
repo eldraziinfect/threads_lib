@@ -86,7 +86,7 @@ int cyield(void){
 	if(inserirApto(EXEC)) // retorna 0 caso tenha obtido sucesso, igual ao AppendFila2
 		return -1;
 	else{
-		// ESCALONADOR
+		escalonador();
 		return 0;
 	}
 }
@@ -172,12 +172,11 @@ int escalonador(){
 		printf("A fila de aptos se encontra vazia!\n");
 		return -1; // -1 indica que a fila de aptos está vazia
 	}
-	if(proximo->prio > EXEC->prio){
+	if(proximo->prio > EXECUTANDO->prio){
 		despachante(proximo);
 		return 0; //retorna 0 caso a troca de contexto tenha ocorrido.
 	}
 	return 1; //retorna 1 caso não tenha ocorrido troca de contexto.
-
 }
 
 TCB_t* pickHighestPriority(){
