@@ -109,7 +109,14 @@ int csetprio(int tid, int prio){
 			return -1;
 }
 
-int cjoin(int tid);
+int cjoin(int tid){
+/*
+* Verificar a existência da thread
+* Verificar se a thread já está sendo esperada
+*/
+if((procurarApto))
+	return 0;
+}
 
 // Semáforo
 int csem_init(csem_t *sem, int count);
@@ -327,4 +334,27 @@ int removeDaFila(PFILA2 fila, TCB_t *tcb)
 		}
 	}
 	return -1;
+}
+
+int procuraApto(TCB_t *tcb){
+	switch(tcb->prio){
+		case:0
+			if(searchTID(APTO_ALTA,tcb->id))
+				return -1;
+			else
+				return 0;
+		case:1
+			if(searchTID(APTO_ALTA,tcb->id))
+				return -1;
+			else
+				return 0;
+		case:2
+			if(searchTID(APTO_ALTA,tcb->id))
+				return -1;
+			else
+				return 0;
+	  default:
+			return -1;
+	}
+
 }
