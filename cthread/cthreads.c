@@ -118,7 +118,22 @@ int cwait(csem_t *sem);
 // Semáforo
 int csignal(csem_t *sem);
 
-int cidentify (char *name, int size);
+int cidentify (char *name, int size){;
+		char nomes[] = "Carine Bertagnolli Bathaglini - 00274715\nGabriel Pakulski da Silva - 00274701\nLuiz Miguel Kruger - 00228271\n";
+		int i,flag = 0;
+		for(i = 0; i < size; i++){
+            if(nomes[i] == '\0'){
+                flag = 1;
+                break;
+            }
+		}
+		if(flag == 0) return -1;
+		for(i = 0;i < size && nomes[i] != '\0';i++){
+                name[i] = nomes[i];
+		}
+		name[i] = '\0';
+		return 0;
+}
 
 TCB_t* searchTID(PFILA2 fila, int tid)
  /*Procura numa fila se existe o processo de tid e retorna | um ponteiro para o TCB caso positivo
