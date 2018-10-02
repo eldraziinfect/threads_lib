@@ -37,29 +37,45 @@ ucontext_t r_context;
 
 int ccreate (void *(*start) (void *), void *arg, int prio)
 {
-	TCB_t* new_thread;
-	// Fazer tratamento caso o tid seja 0, que é a thread main;
-	/* Nesse caso, criar as filas, alocar um tcb para main, colocá-la no executando
-	"Para a criação desse contexto devem  ser utilizadas as mesmas chamadas
-	getcontext() e makecontext(), usadas na criação de threads com a ccreate."
-	*/
+	if(tid ==0){
+		//caso em que as filas falharam em sua criação
+		if(CreateFila2(APTO_ALTA)) return -1;
+		if(CreateFila2(APTO_MEDIA)) return -1;
+		if(CreateFila2(APTO_BAIXA)) return -1;
+		if(CreateFila2(APTO_BLOQUEADO)) return -1;
+		if(CreateFila2(APTO_F_EXECUTANDO)) return -1;
 
-	new_thread = (TCB_t*) malloc(sizeof(TCB_t));
+		TCB_t* new_thread = (TCB_t*) malloc(sizeof(TCB_t));
+		
+		// Fazer tratamento caso o tid seja 0, que é a thread main;
+		/* Nesse caso, criar as filas, alocar um tcb para main, colocá-la no executando
+		"Para a criação desse contexto devem  ser utilizadas as mesmas chamadas
+		getcontext() e makecontext(), usadas na criação de threads com a ccreate."
+		*/
 
-	/* Making thread context */
-	getcontext(&new_thread->context);
-	new_thread->context.uc_stack.ss_sp = (char*) malloc(SIGSTKSZ);
-	new_thread->context.uc_stack.ss_size = SIGSTKSZ;
-	new_thread->context.uc_link = &control.ended_thread;
-	makecontext(&new_thread->context, (void (*)(void))start, 1, arg);
+		new_thread->prio = prio; // prioridade da thread é passada no parâmetro
+		new_thread->tid = tid;
+		new_thread->state = PROCST_APTO; // a thread está apta
+		getcontext(&(new_thread->context));
+
+		EXECUTANDO = new_thread;
+		
+
+		/* Making thread context */
+		getcontext(&new_thread->context);
+		new_thread->context.uc_stack.ss_sp = (char*) malloc(SIGSTKSZ);
+		new_thread->context.uc_stack.ss_size = SIGSTKSZ;
+		new_thread->context.uc_link = &control.ended_thread;
+		makecontext(&new_thread->context, (void (*)(void))start, 1, arg);
 
 
-	/* Put it into all_treads and able_threads */
-	if (!rb_insert(control.all_threads, new_thread->tid, new_thread))
-		return FALSE;
-	if (!rb_able_insert(new_thread->tid))
-		return FALSE;
-
+		/* Put it into all_treads and able_threads */
+		if (!rb_insert(control.all_threads, new_thread->tid, new_thread))
+			return FALSE;
+		if (!rb_able_insert(new_thread->tid))
+			return FALSE;
+	}
+	
 
 	return new_thread->tid;
 }
