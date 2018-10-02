@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-
-
 #include "cthread.h"
 #include "support.h"
 #include "cdata.h"
@@ -13,6 +11,8 @@ TCB_t* pickHighestPriority();
 
 /* Variáveis Globais */
 int tid = 0;
+
+
 
 /* Filas */
 FILA2 aptoAltaPrior;
@@ -38,49 +38,35 @@ ucontext_t r_context;
 
 int ccreate (void *(*start) (void *), void *arg, int prio)
 {
-	if(tid ==0){
-		//caso em que as filas falharam em sua criação
-		if(CreateFila2(APTO_ALTA)) return -1;
-		if(CreateFila2(APTO_MEDIA)) return -1;
-		if(CreateFila2(APTO_BAIXA)) return -1;
-		if(CreateFila2(APTO_BLOQUEADO)) return -1;
-		if(CreateFila2(APTO_F_EXECUTANDO)) return -1;
+	if(tid ==0){ bksbakjdba}
+	tid+=1;
+	TCB_t* new_thread2 = (TCB_t*) malloc (sizeof(TCB_t));
+	
+	new_thread2->prio = prio;
+	new_thread2->state = PROCST_APTO;
+	new_thread2->tid = tid;
+	if (getcontext(&new_thread2->context) == -1)
+	    return -1;
 
-		TCB_t* new_thread = (TCB_t*) malloc(sizeof(TCB_t));
+	//Inicializa contexto
+	(new_thread2->context).uc_link = &returncontext;
+	(new_thread2->context).uc_stack.ss_sp = malloc (TAM_MEM * sizeof(char));
+	(new_thread2->context).uc_stack.ss_size = TAM_MEM;
+	makecontext(&(new_thread2->context), (void(*)())start,1,arg);
 
-		// Fazer tratamento caso o tid seja 0, que é a thread main;
-		/* Nesse caso, criar as filas, alocar um tcb para main, colocá-la no executando
-		"Para a criação desse contexto devem  ser utilizadas as mesmas chamadas
-		getcontext() e makecontext(), usadas na criação de threads com a ccreate."
-		*/
-
-		new_thread->prio = prio; // prioridade da thread é passada no parâmetro
-		new_thread->tid = tid;
-		new_thread->state = PROCST_APTO; // a thread está apta
-		getcontext(&(new_thread->context));
-
-		EXECUTANDO = new_thread;
-
-
-		/* Making thread context */
-		getcontext(&new_thread->context);
-		new_thread->context.uc_stack.ss_sp = (char*) malloc(SIGSTKSZ);
-		new_thread->context.uc_stack.ss_size = SIGSTKSZ;
-		new_thread->context.uc_link = &control.ended_thread;
-		makecontext(&new_thread->context, (void (*)(void))start, 1, arg);
-
-
-		/* Put it into all_treads and able_threads */
-		if (!rb_insert(control.all_threads, new_thread->tid, new_thread))
-			return FALSE;
-		if (!rb_able_insert(new_thread->tid))
-			return FALSE;
+	//ao final do processo de criação, a thread deverá ser inserida na fila dos aptos
+	if(EXCUTANDO->prio < new_thread2->prio){
+		despachante(new_thread2);
 	}
-
+	
+	if (AppendFila2(APTO, novo_tcb))
+	    return -1;
 
 	return tid;
 }
 
+//////////////////////////////******************************
+// inserirApto(EXECUTANDO) em qual das filas dos aptos vai inserir???? ja q temos 3
 // Cedência voluntária:
 int cyield(void){
 	EXECUTANDO->state = PROCST_APTO; //Passa de executando pra apto.
@@ -94,31 +80,22 @@ int cyield(void){
 
 // Setar prioridade:
 int csetprio(int tid, int prio){
-		//Aparentemente é pra deixar tid em null em 2018/2, então o csetprio funciona apenas na thread corrente.
-		if(prio >= 0 && prio <= 2){
-			if(EXECUTANDO->prio > prio){
-			// Executar caso o processo tenha baixado a prioridade, executar o escalonador
-			return 0;
-			}
-			else{
-				EXECUTANDO->prio = prio;
-				return 0;
-			}
+	//Aparentemente é pra deixar tid em null em 2018/2, então o csetprio funciona apenas na thread corrente.
+	if(prio >= 0 && prio <= 2){
+		if(EXECUTANDO->prio > prio){
+		// Executar caso o processo tenha baixado a prioridade, executar o escalonador
+		return 0;
 		}
-		else //valor de prioridade é inválido, deve estar entre [0,2].
-			return -1;
+		else{
+			EXECUTANDO->prio = prio;
+			return 0;
+		}
+	}
+	else //valor de prioridade é inválido, deve estar entre [0,2].
+		return -1;
 }
 
-
-int cjoin(int tid)
-{	if((searchTID(APTO, tid) == NULL) && (searchTID(BLOCK, tid) == NULL)) //A thread não existe em lugar nenhum
-	{	return -1;
-	}
-	if (searchJoin(tid) != 0) // a thread jah estah sendo esperada
-	{	return -1;
-	}
-	
-	// codigo do Tiburski
+int cjoin(int tid){
 /*
 * Verificar a existência da thread
 * Verificar se a thread já está sendo esperada
@@ -126,11 +103,6 @@ int cjoin(int tid)
 if((procurarApto) && (searchTID(BLOQUEADO,tid) == NULL))
 	return -1;
 
-	/// #DUVIDA
-	/// e agora? Tem ums lista de bloqueados em cada thread?
-	// podemos criar uma fila nova que é quase igual só que com menos atributos, que ocupariam espaço inutil
-	
-	
 }
 
 // Semáforo
@@ -138,7 +110,14 @@ int csem_init(csem_t *sem, int count);
 // Semáforo
 int cwait(csem_t *sem);
 // Semáforo
-int csignal(csem_t *sem);
+int csignal(csem_t *sem){
+	//para cada chamadada primitiva a variável count deve ser decrementada 
+	// de uma unidade
+	sem->count += 1;
+
+
+    return 0;
+}
 
 int cidentify (char *name, int size){;
 		char nomes[] = "Carine Bertagnolli Bathaglini - 00274715\nGabriel Pakulski da Silva - 00274701\nLuiz Miguel Kruger - 00228271\n";
@@ -155,6 +134,94 @@ int cidentify (char *name, int size){;
 		}
 		name[i] = '\0';
 		return 0;
+}
+
+
+/********************* FUNÇÕES AUXILIARES *********************/
+
+
+void init_threads(){
+	//caso em que as filas falharam em sua criação
+	if(CreateFila2(APTO_ALTA)) { 
+		printf("ERRO: falha ao criar fila dos aptos de prioridade alta\n");
+		return -1;
+	}
+	if(CreateFila2(APTO_MEDIA)){
+		printf("ERRO: falha ao criar fila dos aptos de prioridade média\n");
+		return -1;
+	}
+	if(CreateFila2(APTO_BAIXA)){
+		printf("ERRO: falha ao criar fila dos aptos de prioridade baixa\n");
+		return -1;
+	}
+	if(CreateFila2(BLOQUEADO)){
+		printf("ERRO: falha ao criar fila dos bloqueados\n");
+		return -1;
+	}
+	if(CreateFila2(APTO_F_EXECUTANDO)){
+		printf("ERRO: falha ao criar fila join\n");
+		return -1;
+	}
+
+	TCB_t* new_thread = (TCB_t*) malloc(sizeof(TCB_t));
+
+	new_thread->prio = prio; // prioridade da thread é passada no parâmetro
+	new_thread->tid = tid;
+	new_thread->state = PROCST_APTO; // a thread está apta
+
+	EXECUTANDO = new_thread;
+
+	//create a new thread: getcontext to create a valid context 
+	//(leave the current thread running)
+	getcontext(&(new_thread->context));
+	if(getcontext(&r_context) == -1) return -1;
+	if (lockReturn == 1){
+	    clearBlocked(EXECUTANDO->tid);
+		//readFila(BLOCK);
+	    EXECUTANDO->state = PROCST_TERMINO;
+
+	    //VERIFICAR SE CHEGOU AO FIM DA MAIN PARA DESALOCAR FILAS/SEMAFOROS
+
+	    escalonador();
+	    return 0;
+	}
+	lockReturn = 1;
+}
+	
+}
+
+
+/* A thread sai do modo bloqueado e vai para o estado apto 
+   RETURN: 1 - caso tenha retirado da fila dos bloqueados
+          -1 - caso não tenha retirado alguém da fila dos aptos
+*/
+int freeBlocked(int tidJ){	
+	/*Retorna 0 se retirou alguém da fila de blocked for join, -1 se não.*/
+    wJoin_t* join;
+    TCB_t* free_thread;
+
+    if (FirstFila2(JOIN))  return -1; 
+
+	/*Procura pelo tidJ (tid do TCB que está sendo esperado)
+	para verificar se tem alguém bloqueado por ele*/
+    while((join =GetAtIteratorFila2(W_JOIN)) != NULL){
+        if(join->tidJoin == tidJ){	//Se tiver na fila, coloca o que estava bloqueado para apto
+            free_thread = searchTID(BLOCK,join->tidBlocked);
+            free_thread->state = PROCST_APTO; // muda o estado dessa thread para apto
+		
+	    free_thread
+	
+            if(AppendFila2(APTO, tcb_aux)) return -1; // falhou ao ser colocada na fila dos aptos
+            if(deleteNode(BLOCK, tcb_aux)) return -1; // falhou ao tentar ser deletada dos bloqueados
+            if(DeleteAtIteratorFila2(W_JOIN)) return -1;
+
+            return 0;
+        }
+        else
+            if (NextFila2(W_JOIN))
+                return -1;
+    }
+	return -1;
 }
 
 TCB_t* searchTID(PFILA2 fila, int tid)
@@ -180,30 +247,30 @@ TCB_t* searchTID(PFILA2 fila, int tid)
 
 
 int inserirApto(TCB_t* thread){
-		switch(thread->prio){
-			case 0: //inserir no APTO_ALTA
-						if(AppendFila2(APTO_ALTA,thread)) // RETORNA 0 CASO DEU SUCESSO
-							return -1;
-						else
-							return 0;
-						break;
-			case 1: //inserir no APTO_MEDIA
-						if(AppendFila2(APTO_MEDIA,thread))
-							return -1;
-						else
-							return 0;
-						break;
-			case 2: //inserir no APTO_BAIXA
-						if(AppendFila2(APTO_BAIXA,thread))
-							return -1;
-						else
-							return 0;
-						break;
-			default:
-						printf("A PRIORIDADE DO PROCESSO TA ZUADA!\n");
-						return -1;
-						break;
-		}
+	switch(thread->prio){
+		case 0: //inserir no APTO_ALTA
+			if(AppendFila2(APTO_ALTA,thread)) // RETORNA 0 CASO DEU SUCESSO
+				return -1;
+			else
+				return 0;
+			break;
+		case 1: //inserir no APTO_MEDIA
+			if(AppendFila2(APTO_MEDIA,thread))
+				return -1;
+			else
+				return 0;
+			break;
+		case 2: //inserir no APTO_BAIXA
+			if(AppendFila2(APTO_BAIXA,thread))
+				return -1;
+			else
+				return 0;
+			break;
+		default:
+			printf("A PRIORIDADE DO PROCESSO TA ZUADA!\n");
+			return -1;
+			break;
+	}
 }
 
 int escalonador(){
@@ -371,27 +438,4 @@ int procurarApto(TCB_t *tcb){
 	  default:
 			return -1;
 	}
-}
-
-
-
-
-/// auxiliar cjoin function: 
-int searchJoin(int tid)
-{   /*	Retorna 0 se o processo tid estah bloqueando alguem*/
-    wJoin_t* join;
-
-    if (FirstFila2(W_JOIN)) // erro caso fila vazia
-    {    return -1;
-	}
-    while((join=GetAtIteratorFila2(W_JOIN)) != NULL) // procura na fila
-	{	if(join->tidJoin == tid)
-		{	return 0;
-		}
-        else
-		{	if (NextFila2(W_JOIN)) // erro caso não encontre
-            {	return -1;
-			}
-		}
-    }
 }
