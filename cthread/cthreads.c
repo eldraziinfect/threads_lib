@@ -9,6 +9,7 @@
 
 /* Funções auxiliares */
 TCB_t* searchTID(PFILA2 pFila, int tid);
+TCB_t* pickHighestPriority();
 
 /* Variáveis Globais */
 int tid = 0;
@@ -77,13 +78,13 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 	}
 
 
-	return new_thread->tid;
+	return tid;
 }
 
 // Cedência voluntária:
 int cyield(void){
 	EXECUTANDO->state = PROCST_APTO; //Passa de executando pra apto.
-	if(inserirApto(EXEC)) // retorna 0 caso tenha obtido sucesso, igual ao AppendFila2
+	if(inserirApto(EXECUTANDO)) // retorna 0 caso tenha obtido sucesso, igual ao AppendFila2
 		return -1;
 	else{
 		escalonador();
@@ -124,17 +125,22 @@ TCB_t* searchTID(PFILA2 fila, int tid)
   																												 | NULL caso contrário*/
 {
     TCB_t* tcb;
-    if (FirstFila2(fila))
-        return NULL;
-    while((tcb=GetAtIteratorFila2(fila)) != NULL){
-        if(tcb->tid == tid)
-            return tcb;
-        else
-            if (NextFila2(fila))
-                return NULL;
+    if (FirstFila2(fila)) // fila vazia
+	{	return NULL;
+    }
+	while(*tcb = GetAtIteratorFila2(fila)))
+	{	if(tcb->tid == tid)
+		{	return tcb;
+        }
+		else
+		{	if (NextFila2(fila))
+			{	return NULL;
+			}
+		}
     }
 	return NULL;
 }
+
 
 int inserirApto(TCB_t* thread){
 		switch(thread->prio){
@@ -200,7 +206,8 @@ TCB_t* pickHighestPriority(){
 	return escolhido;
 }
 
-despachante(TCB_t *proximo){
+//*******PEDIU UM RETORNO: COLOQUEI VOID
+void despachante(TCB_t *proximo){
 	int estado = EXECUTANDO->state; //o próximo estado do executando define qual tratamento ele receberá.
 	switch(estado){
 		case PROCST_APTO: //É necessário colocar o processo na fila de aptos.
@@ -236,7 +243,8 @@ despachante(TCB_t *proximo){
 	}
 }
 
-adicionarApto (TCB_t *tcb){
+//*******PEDIU UM RETORNO: COLOQUEI VOID
+void adicionarApto (TCB_t *tcb){
 	/* Retorna 0 caso tenha funcionado e -1 cc.
 	*/
 		switch(tcb->prio){
@@ -265,7 +273,8 @@ adicionarApto (TCB_t *tcb){
 					break;
 		}
 }
-removerApto(TCB_t *tcb){
+//*******PEDIU UM RETORNO: COLOQUEI VOID
+void removerApto(TCB_t *tcb){
 	TCB_t *temp;
  	if(searchTID(APTO_ALTA,tcb->id)){
 		if(removeDaFila(APTO_ALTA,temp)){
