@@ -5,10 +5,6 @@
 #include "../include/support.h"
 #include "../include/cdata.h"
 
-typedef struct jcb
-{
-
-} JCB_t;
 /* Funções auxiliares */
 TCB_t* searchTID(PFILA2 pFila, int tid);
 TCB_t* pickHighestPriority();
@@ -16,6 +12,9 @@ int sortThreads(csem_t *sem);
 int escalonador(void);
 int despachante(TCB_t *proximo);
 int init_threads(int prio);
+TCB_t* searchData(int tid);
+int remove_thread(int tid, PFILA2 fila); //via tid
+int removeDaFila(PFILA2 fila, TCB_t *tcb); //via ponteiro para tcb.
 /* Variáveis Globais */
 int tid = 0;
 int are_init_threads =0;
@@ -43,10 +42,11 @@ TCB_t *EXECUTANDO;
 /* Variável u_context para facilitar o retorno */
 ucontext_t r_context;
 
-/*
+
 int ccreate (void *(*start) (void *), void *arg, int prio)
 {
-	if(are_init_threads ==0) init_thread();
+	if(are_init_threads == 0) //Ou seja, é a thread main
+		init_thread(); //inicia as filas, aloca um tcb para main
 
 	TCB_t* thread = (TCB_t*) malloc (sizeof(TCB_t));
 
@@ -57,25 +57,25 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 
 	if (getcontext(&thread->context) == -1)
 	    return -1;
-*/
+
 //Inicializa contexto
-/*
+
 (thread->context).uc_link = &returncontext;
 (thread->context).uc_stack.ss_sp = malloc (TAM_MEM * sizeof(char));
 (thread->context).uc_stack.ss_size = TAM_MEM;
 makecontext(&(thread->context), (void(*)())start,1,arg);
-*/
 
+thread->state = PROCST_APTO;
 //ao final do processo de criação, a thread deverá ser inserida na fila dos aptos
-//	if(EXECUTANDO->prio < thread->prio){
-//	despachante(thread);
-//}
+	if(EXECUTANDO->prio > thread->prio){
+		escalonador();
+	}
 
-//if (adicionarApto(novo_tcb))
-//   return -1;
+	if (adicionarApto(thread))
+	   return -1;
 
-//	return tid;
-//}
+	return t_count;
+}
 
 //////////////////////////////******************************
 // inserirApto(EXECUTANDO) em qual das filas dos aptos vai inserir???? ja q temos 3
@@ -100,7 +100,10 @@ int csetprio(int tid, int prio)
     {
         if(EXECUTANDO->prio > prio)
         {
-            // Executar caso o processo tenha baixado a prioridade, executar o escalonador
+						EXECUTANDO->state = PROCST_APTO;
+						if(inserirApto(EXECUTANDO))
+							return -1;
+            escalonador();
             return 0;
         }
         else
@@ -149,7 +152,7 @@ int cjoin(int tid){
    TCB_t *thread = EXECUTANDO;
 
   / não mudei a struct pq não sabía como q vai ser/
-  JCB_t *jcb = malloc(sizeof(JCB_t));
+  JCB_t *jcb = malloc(sizeof(JCB_t)); //struct JCB foi substituída por tratamento via TCB_t.(void* data)
   jcb->tid = tid;
   jcb->thread = thread;
 
@@ -331,8 +334,10 @@ int init_threads(int prio)
     EXECUTANDO = (TCB_t*) malloc(sizeof(TCB_t));
 
     EXECUTANDO->prio = prio; // prioridade da thread é passada no parâmetro
-    EXECUTANDO->tid = tid;
-    EXECUTANDO->state = PROCST_APTO; // a thread está apta
+    EXECUTANDO->tid = 0; // main recebe o tid 0;
+    EXECUTANDO->state = PROCST_EXEC; // a thread está executando
+		getcontext(&(EXECUTANDO->context));
+		getcontext(&(r_context)); //seta o endereço de retorno.
 
 //	EXECUTANDO = new_thread;
 
@@ -376,6 +381,38 @@ int find_thread(int tid, PFILA2 fila)
     while(NextFila2(fila) == 0);
 
     return -1;
+}
+TCB_t* searchDataAux(PFILA2 fila, int tid){
+	TCB_t* thread = (TCB_t*)malloc(sizeof(TCB_t));
+	if(FirstFila2(fila) != 0)
+	{
+			printf("ERRO: fila vazia\n");
+			return NULL;
+	}
+
+	do
+	{
+			if(fila->it == 0)
+				break;
+			thread = (TCB_t *)GetAtIteratorFila2(fila);
+			if(thread->data == tid)
+				return thread;
+	}
+	while(NextFila2(fila) == 0);
+	return NULL;
+}
+
+TCB_t* searchData(int tid){
+	TCB_t* thread = (TCB_t*)malloc(sizeof(TCB_t));
+	thread = searchDataAux(APTO_ALTA,tid);
+	if(thread) return thread;
+	thread = searchDataAux(APTO_MEDIA,tid);
+	if(thread) return thread;
+	thread = searchDataAux(APTO_BAIXA,tid);
+	if(thread) return thread;
+	thread = searchDataAux(BLOQUEADO,tid);
+	if(thread) return thread;
+	return NULL;
 }
 
 
@@ -503,6 +540,18 @@ int despachante(TCB_t *proximo)
         return 0;
         break;
     case PROCST_TERMINO: //o processo foi terminado: desalocar o PCB.
+				/*
+				* Nesse caso, varrer as 5 listas pra ver se não tinha ninguém
+				* esperando por ele, se for o caso, transferir do bloqueado -> apto.
+				*/
+				temp = searchData(EXECUTANDO->tid); //verifica se existia alguém esperando pelo término do processo em execução.
+				if(temp){
+					temp->state = PROCST_APTO;
+					if(remove_thread(temp->tid,BLOQUEADO)) //remove do bloqueado.
+						return -1;
+					if(adicionarApto(temp)) //adiciona em apto
+						return -1;
+				}
         free(EXECUTANDO);
         //EXEC = NULL;
         proximo->state = PROCST_EXEC;
@@ -634,12 +683,12 @@ int procurarApto(TCB_t *tcb)
         else
             return 0;
     case 1:
-        if(searchTID(APTO_ALTA,tcb->tid))
+        if(searchTID(APTO_MEDIA,tcb->tid))
             return -1;
         else
             return 0;
     case 2:
-        if(searchTID(APTO_ALTA,tcb->tid))
+        if(searchTID(APTO_BAIXA,tcb->tid))
             return -1;
         else
             return 0;
