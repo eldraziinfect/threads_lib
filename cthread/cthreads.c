@@ -120,58 +120,25 @@ int csetprio(int tid, int prio)
 //**** ALGUEM TAVA COMEÇANDO
 // eu tava
 /
-int cjoin(int tid){
+int cjoin(int tid)
+{	/*
+	* Verificar a existência da thread
+	* Verificar se a thread já está sendo esperada
+	*/
+	
+	if(searchData(tid)!=NULL || searchTID(tid)==NULL) // thread já está bloqueada ou não existe
+	{	return -1;
+	}
+	else
+	{	EXECUTANDO->data = tid;
+		EXECUTANDO->state = PROCST_BLOQ;
+		escalonador();
+		return 0;
+	}
+return -2; //só cai aqui em caso de erro por radiação
+}
 
-/*
-* Verificar a existência da thread
-* Verificar se a thread já está sendo esperada
-*/
 
-if((procurarApto) && (searchTID(BLOQUEADO,tid) == NULL))
-	return -1;
-
-
-/*
-int cjoin(int tid){
-
-  if(init_threads == 0)  init_cthreads(); // threads inicializadas
-
-  if(tid == 0){
-	printf("ERRO: erro no TID da thread main.\n");
-	return -1;
-  }
-
-   if((find_thread(tid, APTO_ALTA) != 0) &&
-       (find_thread(tid, APTO_MEDIA) != 0) &&
-       (find_thread(tid, APTO_BAIXA) != 0)){
-    	if(find_thread(tid, BLOQUEADO) != 0){
-		printf("ERRO: Não encontrou a thread\n");
-    		return -1;
-    }
-
-   TCB_t *thread = EXECUTANDO;
-
-  / não mudei a struct pq não sabía como q vai ser/
-  JCB_t *jcb = malloc(sizeof(JCB_t)); //struct JCB foi substituída por tratamento via TCB_t.(void* data)
-  jcb->tid = tid;
-  jcb->thread = thread;
-
-   if(AppendFila2(&filaJCB, (void*) jcb) != 0){
-    printf("ERRO: erro ao inserir na fila jcb\n\n");
-  }
-
-  thread->state = PROCST_BLOQ;
-  if(AppendFila2(&filaBloqueados, (void*) thread) != 0){
-    printf("ERRO: não pode inserir na fila de bloqueados\n\n");
-  }
-
-  EXECUTANDO = 0;
-  swapcontext(&thread->context, &r_context);
-
-  return 0;
- }
-
-*/
 // Semáforo
 int csem_init(csem_t *sem, int count)
 {
@@ -260,6 +227,11 @@ int cidentify (char *name, int size)
 
 
 /********************* FUNÇÕES AUXILIARES *********************/
+/********************* FUNÇÕES AUXILIARES *********************/
+/********************* FUNÇÕES AUXILIARES *********************/
+/********************* FUNÇÕES AUXILIARES *********************/
+/********************* FUNÇÕES AUXILIARES *********************/
+
 int sortThreads(csem_t *sem)  //É pra ser um bubblesort nas threads do semáforo;
 {
     int i,n = 0;
@@ -364,7 +336,6 @@ int init_threads(int prio)
 
 int find_thread(int tid, PFILA2 fila)
 {
-
     TCB_t *thread = malloc(sizeof(TCB_t));
     if(FirstFila2(fila) != 0)
     {
@@ -382,24 +353,26 @@ int find_thread(int tid, PFILA2 fila)
 
     return -1;
 }
+
 TCB_t* searchDataAux(PFILA2 fila, int tid){
 	TCB_t* thread = (TCB_t*)malloc(sizeof(TCB_t));
+	
 	if(FirstFila2(fila) != 0)
-	{
-			printf("ERRO: fila vazia\n");
-			return NULL;
+	{	printf("ERRO: fila vazia\n");
+		return NULL;
 	}
 
 	do
 	{
-			if(fila->it == 0)
-				break;
-			thread = (TCB_t *)GetAtIteratorFila2(fila);
-			if(thread->data == tid)
-				return thread;
+		if(fila->it == 0)
+			break;
+		thread = (TCB_t *)GetAtIteratorFila2(fila);
+		if(thread->data == tid)
+			return thread;
 	}
 	while(NextFila2(fila) == 0);
-	return NULL;
+	
+return NULL;
 }
 
 TCB_t* searchData(int tid){
@@ -412,14 +385,17 @@ TCB_t* searchData(int tid){
 	if(thread) return thread;
 	thread = searchDataAux(BLOQUEADO,tid);
 	if(thread) return thread;
-	return NULL;
+	
+return NULL;
 }
 
 
 TCB_t* searchTID(PFILA2 fila, int tid)
-/*Procura numa fila se existe o processo de tid e retorna | um ponteiro para o TCB caso positivo																											 | NULL caso contrário*/
+/*Procura numa fila se existe o processo de tid e retorna 
+	| um ponteiro para o TCB caso positivo	
+	| NULL caso contrário*/
 {
-    TCB_t* tcb; //// cadê o malloc?
+    TCB_t* tcb; /// cadê o malloc?
     if (FirstFila2(fila))
     {
         print("ERRO: a fila está vazia\n");
