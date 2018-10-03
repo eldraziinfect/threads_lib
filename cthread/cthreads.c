@@ -115,18 +115,19 @@ int csetprio(int tid, int prio)
 
 
 //**** ALGUEM TAVA COMEÇANDO
-/*
+// eu tava
+/
 int cjoin(int tid){
 
-	/*
+/*
 * Verificar a existência da thread
 * Verificar se a thread já está sendo esperada
-
+*/
 
 if((procurarApto) && (searchTID(BLOQUEADO,tid) == NULL))
 	return -1;
 
-*/
+
 /*
 int cjoin(int tid){
 
