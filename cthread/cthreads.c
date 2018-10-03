@@ -43,10 +43,11 @@ TCB_t *EXECUTANDO;
 /* Variável u_context para facilitar o retorno */
 ucontext_t r_context;
 
-/*
+
 int ccreate (void *(*start) (void *), void *arg, int prio)
 {
-	if(are_init_threads ==0) init_thread();
+	if(are_init_threads == 0) //Ou seja, é a thread main
+		init_thread(); //inicia as filas, aloca um tcb para main
 
 	TCB_t* thread = (TCB_t*) malloc (sizeof(TCB_t));
 
@@ -57,25 +58,25 @@ int ccreate (void *(*start) (void *), void *arg, int prio)
 
 	if (getcontext(&thread->context) == -1)
 	    return -1;
-*/
+
 //Inicializa contexto
-/*
+
 (thread->context).uc_link = &returncontext;
 (thread->context).uc_stack.ss_sp = malloc (TAM_MEM * sizeof(char));
 (thread->context).uc_stack.ss_size = TAM_MEM;
 makecontext(&(thread->context), (void(*)())start,1,arg);
-*/
 
+thread->state = PROCST_APTO;
 //ao final do processo de criação, a thread deverá ser inserida na fila dos aptos
-//	if(EXECUTANDO->prio < thread->prio){
-//	despachante(thread);
-//}
+	if(EXECUTANDO->prio > thread->prio){
+		escalonador();
+	}
 
-//if (adicionarApto(novo_tcb))
-//   return -1;
+	if (adicionarApto(thread))
+	   return -1;
 
-//	return tid;
-//}
+	return t_count;
+}
 
 //////////////////////////////******************************
 // inserirApto(EXECUTANDO) em qual das filas dos aptos vai inserir???? ja q temos 3
@@ -100,7 +101,10 @@ int csetprio(int tid, int prio)
     {
         if(EXECUTANDO->prio > prio)
         {
-            // Executar caso o processo tenha baixado a prioridade, executar o escalonador
+						EXECUTANDO->state = PROCST_APTO;
+						if(inserirApto(EXECUTANDO))
+							return -1;
+            escalonador();
             return 0;
         }
         else
@@ -330,8 +334,10 @@ int init_threads(int prio)
     EXECUTANDO = (TCB_t*) malloc(sizeof(TCB_t));
 
     EXECUTANDO->prio = prio; // prioridade da thread é passada no parâmetro
-    EXECUTANDO->tid = tid;
-    EXECUTANDO->state = PROCST_APTO; // a thread está apta
+    EXECUTANDO->tid = 0; // main recebe o tid 0;
+    EXECUTANDO->state = PROCST_EXEC; // a thread está executando
+		getcontext(&(EXECUTANDO->context));
+		getcontext(&(r_context)); //seta o endereço de retorno.
 
 //	EXECUTANDO = new_thread;
 
