@@ -5,16 +5,20 @@
 #include "../include/support.h"
 #include "../include/cdata.h"
 
+#define TAM_MEM 4096
 /* Funções auxiliares */
+int init_threads(int prio);
+int removerApto(TCB_t *tcb);
+int adicionarApto (TCB_t *tcb);
 TCB_t* searchTID(PFILA2 pFila, int tid);
 TCB_t* pickHighestPriority();
 int sortThreads(csem_t *sem);
 int escalonador(void);
 int despachante(TCB_t *proximo);
-int init_threads(int prio);
 TCB_t* searchData(int tid);
 int remove_thread(int tid, PFILA2 fila); //via tid
 int removeDaFila(PFILA2 fila, TCB_t *tcb); //via ponteiro para tcb.
+
 /* Variáveis Globais */
 int tid = 0;
 int are_init_threads =0;
@@ -45,35 +49,37 @@ ucontext_t r_context;
 
 int ccreate (void *(*start) (void *), void *arg, int prio)
 {
+
 	if(are_init_threads == 0) //Ou seja, é a thread main
-		init_thread(); //inicia as filas, aloca um tcb para main
-
-	TCB_t* thread = (TCB_t*) malloc (sizeof(TCB_t));
-
+		init_threads(prio); //inicia as filas, aloca um tcb para main
+    t_count++;
+	TCB_t* thread = (TCB_t*)malloc(sizeof(TCB_t));
+    // ATÉ AQUI TA TUDO FUNCIONANDO
 	thread->prio = prio;
 	thread->state = PROCST_CRIACAO;
 	thread->tid = t_count;
-	t_count++;
-
-	if (getcontext(&thread->context) == -1)
+	if (getcontext(&(thread->context)) == -1)
 	    return -1;
-
 //Inicializa contexto
-
-(thread->context).uc_link = &returncontext;
+printf("Passou pelo getcontext!\n");
+(thread->context).uc_link = &r_context;
 (thread->context).uc_stack.ss_sp = malloc (TAM_MEM * sizeof(char));
 (thread->context).uc_stack.ss_size = TAM_MEM;
-makecontext(&(thread->context), (void(*)())start,1,arg);
-
 thread->state = PROCST_APTO;
+printf("Esta exatamente antes do makecontext!!!!!\n");
+makecontext(&(thread->context), (void(*)())start,1,arg);
+    return -1;
+printf("Passou pelo makecontext!\n");
 //ao final do processo de criação, a thread deverá ser inserida na fila dos aptos
-	if(EXECUTANDO->prio > thread->prio){
+	if(EXECUTANDO->prio > prio){
+	    printf("PREEMPCAO NECESSARIA, ESCALONADOR INVOCADO\n");
 		escalonador();
 	}
-
+    printf("Não ocorreu preempcao\n");
 	if (adicionarApto(thread))
 	   return -1;
-
+    printf("Thread Adicionada ao apto\n");
+    printf("Thread Adicionada ao apto\n");
 	return t_count;
 }
 
@@ -83,7 +89,7 @@ thread->state = PROCST_APTO;
 int cyield(void)
 {
     EXECUTANDO->state = PROCST_APTO; //Passa de executando pra apto.
-    if(inserirApto(EXECUTANDO)) // retorna 0 caso tenha obtido sucesso, igual ao AppendFila2
+    if(adicionarApto(EXECUTANDO)) // retorna 0 caso tenha obtido sucesso, igual ao AppendFila2
         return -1;
     else
     {
@@ -101,7 +107,7 @@ int csetprio(int tid, int prio)
         if(EXECUTANDO->prio > prio)
         {
 						EXECUTANDO->state = PROCST_APTO;
-						if(inserirApto(EXECUTANDO))
+						if(adicionarApto(EXECUTANDO))
 							return -1;
             escalonador();
             return 0;
@@ -119,18 +125,23 @@ int csetprio(int tid, int prio)
 
 //**** ALGUEM TAVA COMEÇANDO
 // eu tava
-/
+
 int cjoin(int tid)
 {	/*
 	* Verificar a existência da thread
 	* Verificar se a thread já está sendo esperada
 	*/
-	
-	if(searchData(tid)!=NULL || searchTID(tid)==NULL) // thread já está bloqueada ou não existe
-	{	return -1;
+
+	if(searchData(tid)!= NULL || (searchTID(BLOQUEADO,tid)==NULL &&
+                                 searchTID(APTO_ALTA,tid)==NULL &&
+                                searchTID(APTO_MEDIA,tid)==NULL &&
+                                searchTID(APTO_BAIXA,tid)==NULL))// thread já está bloqueada ou não existe
+	{
+	    return -1;
 	}
 	else
-	{	EXECUTANDO->data = tid;
+	{
+	    EXECUTANDO->data = (void*)tid;
 		EXECUTANDO->state = PROCST_BLOQ;
 		escalonador();
 		return 0;
@@ -302,14 +313,15 @@ int init_threads(int prio)
         printf("ERRO: falha ao criar fila join\n");
         return -1;
     }
+    printf("CHEGOU NO INIT THREADS E ALOCOU AS FILAS!!");
+    TCB_t* fthread = (TCB_t*) malloc(sizeof(TCB_t *));
 
-    EXECUTANDO = (TCB_t*) malloc(sizeof(TCB_t));
-
-    EXECUTANDO->prio = prio; // prioridade da thread é passada no parâmetro
-    EXECUTANDO->tid = 0; // main recebe o tid 0;
-    EXECUTANDO->state = PROCST_EXEC; // a thread está executando
-		getcontext(&(EXECUTANDO->context));
-		getcontext(&(r_context)); //seta o endereço de retorno.
+    fthread->prio = prio; // prioridade da thread é passada no parâmetro
+    fthread->tid = 0; // main recebe o tid 0;
+    fthread->state = PROCST_EXEC; // a thread está executando
+    getcontext(&(fthread->context));
+    EXECUTANDO = fthread;
+    getcontext(&(r_context)); //seta o endereço de retorno.
 
 //	EXECUTANDO = new_thread;
 
@@ -331,6 +343,7 @@ int init_threads(int prio)
     	lockReturn = 1; */
 
     are_init_threads = 1;
+    return 0;
 }
 
 
@@ -356,7 +369,7 @@ int find_thread(int tid, PFILA2 fila)
 
 TCB_t* searchDataAux(PFILA2 fila, int tid){
 	TCB_t* thread = (TCB_t*)malloc(sizeof(TCB_t));
-	
+
 	if(FirstFila2(fila) != 0)
 	{	printf("ERRO: fila vazia\n");
 		return NULL;
@@ -367,11 +380,11 @@ TCB_t* searchDataAux(PFILA2 fila, int tid){
 		if(fila->it == 0)
 			break;
 		thread = (TCB_t *)GetAtIteratorFila2(fila);
-		if(thread->data == tid)
+		if((int)thread->data == tid)
 			return thread;
 	}
 	while(NextFila2(fila) == 0);
-	
+
 return NULL;
 }
 
@@ -385,28 +398,31 @@ TCB_t* searchData(int tid){
 	if(thread) return thread;
 	thread = searchDataAux(BLOQUEADO,tid);
 	if(thread) return thread;
-	
+
 return NULL;
 }
 
 
 TCB_t* searchTID(PFILA2 fila, int tid)
-/*Procura numa fila se existe o processo de tid e retorna 
-	| um ponteiro para o TCB caso positivo	
+/*Procura numa fila se existe o processo de tid e retorna
+	| um ponteiro para o TCB caso positivo
 	| NULL caso contrário*/
 {
-    TCB_t* tcb; /// cadê o malloc?
+    TCB_t* tcb = (TCB_t*)GetAtIteratorFila2(fila); /// cadê o malloc?
     if (FirstFila2(fila))
     {
-        print("ERRO: a fila está vazia\n");
+        printf("ERRO: a fila está vazia\n");
         return NULL;
     }
-    while(tcb = (TCB_t*)GetAtIteratorFila2(fila))
+    while(tcb)
     {
-        if(tcb->tid == tid) return tcb;
-        else if (NextFila2(fila)) return NULL;
-        return NULL;
+        if(tcb->tid == tid)
+            return tcb;
+            else if (NextFila2(fila))
+                return NULL;
+        tcb = (TCB_t*)GetAtIteratorFila2(fila);
     }
+    return NULL;
 }
 
 /*
@@ -539,6 +555,7 @@ int despachante(TCB_t *proximo)
     default:
         return -1;
     }
+    return -1;
 }
 
 
@@ -577,8 +594,8 @@ int adicionarApto (TCB_t *tcb)
 
 int removerApto(TCB_t *tcb)
 {
-    TCB_t *temp;
-    if(searchTID(APTO_ALTA,tcb->tid))
+    TCB_t *temp = searchTID(APTO_ALTA,tcb->tid);
+    if(temp)
     {
         if(removeDaFila(APTO_ALTA,temp))
         {
@@ -586,7 +603,8 @@ int removerApto(TCB_t *tcb)
         }
         else return 0;
     }
-    if(searchTID(APTO_MEDIA,tcb->tid))
+    temp = searchTID(APTO_MEDIA,tcb->tid);
+    if(temp)
     {
         if(removeDaFila(APTO_MEDIA,temp))
         {
@@ -594,7 +612,8 @@ int removerApto(TCB_t *tcb)
         }
         else return 0;
     }
-    if(searchTID(APTO_BAIXA,tcb->tid))
+    temp = searchTID(APTO_BAIXA,tcb->tid);
+    if(temp)
     {
         if(removeDaFila(APTO_BAIXA,temp))
         {
